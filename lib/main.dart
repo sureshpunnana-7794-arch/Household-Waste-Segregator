@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'models/waste_entry.dart';
 import 'services/firebase_service.dart';
-import 'screens/auth_dialog.dart';
+import 'screens/photo_scan_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +24,7 @@ class EcoSortApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'EcoSort',
+      title: 'EcoSort - Household Waste Segregator',
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF6FAF7),
@@ -49,10 +50,12 @@ class _EcoHomeState extends State<EcoHome> {
   bool challengeCompleted = false;
   final service = FirebaseService.instance;
 
-  double get total => service.currentEntries.fold(0, (sum, e) => sum + e.quantity);
+  double get total =>
+      service.currentEntries.fold(0, (sum, e) => sum + e.quantity);
 
-  double byType(int type) =>
-      service.currentEntries.where((e) => e.type == type).fold(0, (s, e) => s + e.quantity);
+  double byType(int type) => service.currentEntries
+      .where((e) => e.type == type)
+      .fold(0, (s, e) => s + e.quantity);
 
   @override
   Widget build(BuildContext context) {
@@ -65,13 +68,50 @@ class _EcoHomeState extends State<EcoHome> {
           _segregate(),
           _guide(),
           _impact(),
+          const ProfileScreen(),
         ];
         return Scaffold(
-          body: SafeArea(child: IndexedStack(index: tab, children: pages)),
+          body: SafeArea(
+            child: IndexedStack(
+              index: tab.clamp(0, pages.length - 1),
+              children: pages,
+            ),
+          ),
+          floatingActionButton: tab == 0 || tab == 1
+              ? FloatingActionButton.extended(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PhotoScanScreen(),
+                      ),
+                    ).then((_) => setState(() {}));
+                  },
+                  backgroundColor: forest,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.document_scanner_rounded),
+                  label: const Text(
+                    'Smart Scan',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                )
+              : null,
           bottomNavigationBar: NavigationBar(
             height: 72,
             selectedIndex: tab,
-            onDestinationSelected: (v) => setState(() => tab = v),
+            onDestinationSelected: (v) {
+              if (v == 2) {
+                // Tapping Center Scanner opens photo scan
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PhotoScanScreen(),
+                  ),
+                ).then((_) => setState(() {}));
+              } else {
+                setState(() => tab = v);
+              }
+            },
             backgroundColor: Colors.white,
             indicatorColor: mint,
             destinations: const [
@@ -84,12 +124,16 @@ class _EcoHomeState extends State<EcoHome> {
                 label: 'Segregate',
               ),
               NavigationDestination(
+                icon: Icon(Icons.camera_alt_rounded),
+                label: 'Scan',
+              ),
+              NavigationDestination(
                 icon: Icon(Icons.menu_book_rounded),
                 label: 'Guide',
               ),
               NavigationDestination(
-                icon: Icon(Icons.insights_rounded),
-                label: 'Impact',
+                icon: Icon(Icons.person_rounded),
+                label: 'Profile',
               ),
             ],
           ),
@@ -103,7 +147,7 @@ class _EcoHomeState extends State<EcoHome> {
     final user = service.currentUser;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
       children: [
         Row(
           children: [
@@ -157,17 +201,8 @@ class _EcoHomeState extends State<EcoHome> {
             CircleAvatar(
               backgroundColor: mint,
               child: IconButton(
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(24)),
-                    ),
-                    builder: (context) => const AuthSheet(),
-                  ).then((_) => setState(() {}));
-                },
+                tooltip: 'Profile & Settings',
+                onPressed: () => setState(() => tab = 4),
                 icon: Icon(
                   user != null && !user.isAnonymous
                       ? Icons.person_rounded
@@ -178,7 +213,9 @@ class _EcoHomeState extends State<EcoHome> {
             ),
           ],
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
+
+        // Hero Card
         Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
@@ -253,6 +290,79 @@ class _EcoHomeState extends State<EcoHome> {
             ],
           ),
         ),
+
+        const SizedBox(height: 18),
+
+        // Smart Photo Scan Card Banner
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF101F18), Color(0xFF1A3D2D)],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: leaf.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Color(0xFF68D391),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Smart AI Photo Scanner',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Scan items with camera to auto-classify & earn points',
+                      style: TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PhotoScanScreen(),
+                    ),
+                  ).then((_) => setState(() {}));
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: leaf,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: const Text('Scan'),
+              ),
+            ],
+          ),
+        ),
+
         const SizedBox(height: 24),
         _sectionTitle('Your waste at a glance', 'TODAY'),
         const SizedBox(height: 12),
@@ -289,7 +399,8 @@ class _EcoHomeState extends State<EcoHome> {
                         child: Icon(w.icon, color: w.color, size: 18),
                       ),
                       const Spacer(),
-                      Icon(Icons.arrow_outward_rounded, color: w.color, size: 15),
+                      Icon(Icons.arrow_outward_rounded,
+                          color: w.color, size: 15),
                     ],
                   ),
                   const Spacer(),
@@ -447,7 +558,7 @@ class _EcoHomeState extends State<EcoHome> {
 
   Widget _segregate() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 80),
       children: [
         const Text(
           'Sort your waste',
@@ -459,47 +570,77 @@ class _EcoHomeState extends State<EcoHome> {
         ),
         const SizedBox(height: 5),
         const Text(
-          'Choose a category and record what you throw away.',
+          'Choose a category or use smart AI camera scanner.',
           style: TextStyle(color: muted, fontSize: 13),
         ),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(17),
-          decoration: BoxDecoration(
-            color: forest,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: const Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Not sure where it goes?',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Use the quick sorting guide to find the right bin.',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
-                  ],
+        const SizedBox(height: 18),
+
+        // Interactive Smart Scan Launcher
+        InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const PhotoScanScreen(),
+              ),
+            ).then((_) => setState(() {}));
+          },
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF174C38), Color(0xFF28795A)],
+              ),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.document_scanner_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                 ),
-              ),
-              Icon(
-                Icons.tips_and_updates_rounded,
-                color: Color(0xFFB8E9CF),
-                size: 38,
-              ),
-            ],
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Launch Smart Photo Scan',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Camera / Gallery automatic waste recognition',
+                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+              ],
+            ),
           ),
         ),
+
         const SizedBox(height: 20),
+
         ...List.generate(kWasteTypes.length, (i) {
           final w = kWasteTypes[i];
           return Padding(
@@ -541,7 +682,8 @@ class _EcoHomeState extends State<EcoHome> {
                           const SizedBox(height: 3),
                           Text(
                             w.examples,
-                            style: const TextStyle(fontSize: 11, color: muted),
+                            style:
+                                const TextStyle(fontSize: 11, color: muted),
                           ),
                         ],
                       ),
@@ -602,7 +744,7 @@ class _EcoHomeState extends State<EcoHome> {
       ],
     ];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 80),
       children: [
         const Text(
           'Disposal guide',
@@ -700,7 +842,7 @@ class _EcoHomeState extends State<EcoHome> {
 
   Widget _impact() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 80),
       children: [
         const Text(
           'Your green impact',
@@ -838,7 +980,8 @@ class _EcoHomeState extends State<EcoHome> {
         ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 14),
           tileColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           leading: const CircleAvatar(
             backgroundColor: mint,
             child: Icon(Icons.calendar_month_rounded, color: forest),
@@ -940,7 +1083,8 @@ class _EcoHomeState extends State<EcoHome> {
             const SizedBox(height: 12),
             TextField(
               controller: qtyController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                 labelText: 'Quantity (kg)',
                 hintText: '0.5',
